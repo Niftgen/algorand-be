@@ -1,0 +1,435 @@
+import {Knex} from "knex"
+const supertest = require("supertest")
+const app = require("../../app")
+import {Asset} from '../src/lambda/db/models/Asset'
+import {User} from '../src/lambda/db/models/User'
+import {Lookup, LOOKUP_CATEGORIES, LOOKUP_SALE_TYPES} from "../src/lambda/db/models/Lookup";
+import {setupDb, stopDb} from "./testDB";
+import {createAsset, findAsset, updateAssetList, updateAssetMint} from "../src/lambda/helpers/asset.helper";
+import {findByType} from "../src/lambda/helpers/lookup.helper";
+import {createUser} from "../src/lambda/helpers/user.helper";
+import {TRANSACTION_TYPES, Transaction} from "../src/lambda/db/models/Transaction";
+
+describe('Transaction Tests',() => {
+  let db: Knex
+  let owner: User | undefined
+  let minter: User | undefined
+  let buyer: User | undefined
+  const request = supertest(app)
+
+  const result_fields = () => {
+    return `
+              id
+              name
+              description
+              asaId
+              ipfsPath
+              txId
+              listingTxId
+              buyTxId
+              price
+              currency
+              sellType
+              minterId
+              userId
+              createdAt
+              updatedAt
+              saleType{
+                id
+                active
+                description
+                type
+                createdAt
+                updatedAt
+              }
+              owner {
+                id
+                avatarPath
+                dateOfBirth
+                email
+                userName
+                walletAddress
+                createdAt
+                updatedAt
+              }
+              minter {
+                id
+                avatarPath
+                dateOfBirth
+                email
+                userName
+                walletAddress
+                createdAt
+                updatedAt
+              }
+              categories{
+                id
+                active
+                description
+                type
+                createdAt
+                updatedAt
+              }    
+              ratingTotals{
+                averageRating
+                ratingCount
+              }                   
+              transactions{
+                id
+                type
+                txIds
+                amount
+                currency
+                assetId
+                userId
+                sellType               
+                owner{
+                  id
+                  userName        
+                }
+                saleType{
+                  id
+                  description
+                }
+                asset{
+                  id
+                  name
+                  description        
+                }  
+              }
+    `
+  }
+
+  const createTestData = async () => {
+    await Asset.query().delete()
+    if (owner &&  minter && buyer) {
+      const saleTypes = await findByType(LOOKUP_SALE_TYPES)
+      const categories = await findByType(LOOKUP_CATEGORIES)
+      await createAsset(
+        {
+          name: "Owner NFT",
+          description: "NFT only added",
+          ipfsPath: "/path/to/added/nft",
+        }, owner)
+      await createAsset(
+        {
+          name: "Owner NFT 2",
+          description: "NFT only added",
+          ipfsPath: "/path/to/added/nft",
+        }, owner)
+      await createAsset(
+        {
+          name: "Minter NFT",
+          description: "NFT only added",
+          ipfsPath: "/path/to/added/nft",
+        }, minter)
+      await createAsset(
+        {
+          name: "Buyer NFT",
+          description: "NFT only added",
+          ipfsPath: "/path/to/added/nft",
+        }, buyer)
+    }
+  }
+
+  beforeAll(async () => {
+    db = await setupDb()
+    await User.query().delete()
+    owner = await createUser({
+      walletAddress: process.env.TEST_WALLET_ADDRESS,
+      avatarPath: 'path/avatar',
+      email: 'owner@ips.com',
+      userName: 'owner'
+    })
+    minter = await createUser({
+      walletAddress: process.env.TEST_WALLET_ADDRESS2,
+      avatarPath: 'path/avatar',
+      email: 'minter@ips.com',
+      userName: 'minter'
+    })
+    buyer = await createUser({
+      walletAddress: 'buyerwalletasset',
+      avatarPath: 'path/avatar',
+      email: 'buyer@ips.com',
+      userName: 'buyer'
+    })
+  })
+
+  afterAll(async () => {
+    await stopDb()
+  })
+
+  beforeEach(async() => {
+    await Transaction.query().delete()
+  })
+
+  test("Add a new asset", async (done: any) => {
+    const saleTypes = await findByType(LOOKUP_SALE_TYPES)
+    const categories = await findByType(LOOKUP_CATEGORIES)
+    request
+      .post("/graphql")
+      .send({
+        query: `
+          mutation {
+            addAsset(
+              ownerAddress: "${owner?.walletAddress}",
+              name: "minter test2",
+              ipfsPath: "ipfs/path",
+            ) { 
+              ${result_fields()}
+            }
+          }
+        `,
+      })
+      .set("Accept", "application/json")
+      .set({ 'Authorization': `Bearer ${process.env.TEST_JWT}` })
+      .expect("Content-Type", /json/)
+      .expect(200)
+      .end(async function (err: any, res: any) {
+        if (err) return done(err)
+        expect(res.body).toBeInstanceOf(Object)
+        expect(res.body.data.addAsset.owner.walletAddress).toEqual(owner?.walletAddress)
+        expect(res.body.data.addAsset.name).toEqual('minter test2')
+        expect(res.body.data.addAsset.ipfsPath).toEqual('ipfs/path')
+        expect(res.body.data.addAsset.transactions[0].type).toEqual(TRANSACTION_TYPES.ADD)
+        expect(res.body.data.addAsset.transactions[0].txIds).toBeNull()
+        expect(res.body.data.addAsset.transactions[0].amount).toBeNull()
+        expect(res.body.data.addAsset.transactions[0].currency).toBeNull()
+        expect(res.body.data.addAsset.transactions[0].assetId).toEqual(res.body.data.addAsset.id)
+        expect(res.body.data.addAsset.transactions[0].userId).toEqual(owner?.id)
+        expect(res.body.data.addAsset.transactions[0].sellType).toBeNull()
+        done()
+      })
+  })
+
+  test("Mint a new asset", async (done: any) => {
+    let asset: Asset | undefined
+    const lookups = await findByType(LOOKUP_SALE_TYPES)
+    if (owner instanceof User) {
+      asset = await createAsset(
+        {
+          name: "Added NFT",
+          description: "NFT only added",
+          ipfsPath: "/path/to/added/nft",
+        }, owner)
+    }
+    request
+      .post("/graphql")
+      .send({
+        query: `
+          mutation {
+            mintAsset(
+              id: ${asset?.id}, 
+              minterAddress: "${owner?.walletAddress}",
+              signedTxn: ${JSON.stringify(["signed_transaction_123"])},
+              royaltyFee: 1
+            ) { 
+              ${result_fields()}
+            }
+          }
+        `,
+      })
+      .set("Accept", "application/json")
+      .set({ 'Authorization': `Bearer ${process.env.TEST_JWT}` })
+      .expect("Content-Type", /json/)
+      .expect(200)
+      .end(async function (err: any, res: any) {
+        if (err) return done(err)
+        const tran = await Transaction.query().findById(res.body.data.mintAsset.mintTransactionId)
+        expect(res.body).toBeInstanceOf(Object)
+        expect(res.body.data.mintAsset.minter.walletAddress).toEqual(owner?.walletAddress)
+        expect(res.body.data.mintAsset.asaId).toEqual(123456)
+        expect(res.body.data.mintAsset.txId).toEqual('test_algo_txn_id')
+        expect(res.body.data.mintAsset.mint.txIds).toEqual('test_algo_txn_id')
+        expect(res.body.data.mintAsset.mint.royaltyFee).toEqual(1)
+        expect(res.body.data.mintAsset.mint.type).toEqual(TRANSACTION_TYPES.MINT)
+        expect(res.body.data.mintAsset.mint.assetId).toEqual(asset?.id)
+        expect(res.body.data.mintAsset.mint.userId).toEqual(owner?.id)
+        expect(res.body.data.mintAsset.mintTransactionId).toEqual(res.body.data.mintAsset.mint.id)
+        done()
+      })
+  })
+
+  test("List an asset", async (done: any) => {
+    let asset: Asset | undefined
+    const fixedPrice = await Lookup.query()
+      .where({
+        type: LOOKUP_SALE_TYPES,
+        description: 'Fixed Price'
+      }).first()
+    if (owner instanceof User) {
+      asset = await createAsset(
+        {
+          name: "NFT",
+          description: "List an asset for a fixed price",
+          ipfsPath: "/path/to/added/nft",
+        }, owner)
+    }
+    asset = await updateAssetMint(asset, {
+      id: asset?.id,
+      minterAddress: owner?.walletAddress,
+      signedTxn: "signed_transaction_123",
+    })
+    request
+      .post("/graphql")
+      .send({
+        query: `
+          mutation {
+            listAsset(
+              id: ${asset?.id}, 
+              ownerAddress: "${owner?.walletAddress}",
+              currency: ALGO,
+              price: 1,
+              saleType: ${fixedPrice?.id}
+              signedTxn: "signed_transaction_123",
+            ) { 
+              ${result_fields()}
+            }
+          }
+        `,
+      })
+      .set("Accept", "application/json")
+      .set({ 'Authorization': `Bearer ${process.env.TEST_JWT}` })
+      .expect("Content-Type", /json/)
+      .expect(200)
+      .end(async function (err: any, res: any) {
+        if (err) return done(err)
+        expect(res.body).toBeInstanceOf(Object)
+        expect(res.body.data.listAsset.owner.walletAddress).toEqual(owner?.walletAddress)
+        expect(res.body.data.listAsset.buyTxId).toBeNull()
+        expect(res.body.data.listAsset.buyTransactionId).toBeNull()
+        expect(res.body.data.listAsset.winBidTransactionId).toBeNull()
+        expect(res.body.data.listAsset.deListTransactionId).toBeNull()
+        expect(res.body.data.listAsset.deListTxId).toBeNull()
+        expect(res.body.data.listAsset.listingTxId).toEqual('test_algo_txn_id')
+        expect(res.body.data.listAsset.list.amount).toEqual(1)
+        expect(res.body.data.listAsset.list.currency).toEqual('ALGO')
+        expect(res.body.data.listAsset.list.saleType.id).toEqual(fixedPrice?.id)
+        expect(res.body.data.listAsset.list.txIds).toEqual('test_algo_txn_id')
+        expect(res.body.data.listAsset.list.type).toEqual(TRANSACTION_TYPES.LIST)
+        expect(res.body.data.listAsset.list.assetId).toEqual(asset?.id)
+        expect(res.body.data.listAsset.list.userId).toEqual(owner?.id)
+        expect(res.body.data.listAsset.listTransactionId).toEqual(res.body.data.listAsset.list.id)
+        done()
+      })
+  })
+
+  test("Buy a fixed price asset", async (done: any) => {
+    let asset: any
+    const fixed = await Lookup.query()
+      .where({
+        type: LOOKUP_SALE_TYPES,
+        description: 'Fixed Price'
+      }).first()
+    if (owner instanceof User) {
+      asset = await createAsset(
+        {
+          name: "NFT",
+          description: "Buy an asset",
+          ipfsPath: "/path/to/added/nft",
+        }, owner)
+    }
+    asset = await updateAssetMint(asset, {
+      id: asset?.id,
+      minterAddress: owner?.walletAddress,
+      signedTxn: "signed_transaction_123",
+    })
+    asset = await updateAssetList(asset, {
+      id: asset?.id,
+      saleType: fixed?.id,
+      price: 2,
+      signedTxn: "signed_transaction_123",
+      currency: 'ALGO'
+    })
+    request
+      .post("/graphql")
+      .send({
+        query: `
+          mutation {
+            buyAsset(
+              id: ${asset?.id}, 
+              buyerAddress: "${minter?.walletAddress}",
+              signedTxn: "signed_transaction_123",
+            ) { 
+              ${result_fields()}
+            }
+          }
+        `,
+      })
+      .set("Accept", "application/json")
+      .set({ 'Authorization': `Bearer ${process.env.TEST_JWT2}` })
+      .expect("Content-Type", /json/)
+      .expect(200)
+      .end(async function (err: any, res: any) {
+        if (err) return done(err)
+        expect(res.body).toBeInstanceOf(Object)
+        expect(res.body.data.buyAsset.owner.walletAddress).toEqual(minter?.walletAddress)
+        expect(res.body.data.buyAsset.listingTxId).toBeNull()
+        expect(res.body.data.buyAsset.listTransactionId).toBeNull()
+        expect(res.body.data.buyAsset.price).toBeNull()
+        expect(res.body.data.buyAsset.buyTxId).toEqual('test_algo_txn_id')
+        expect(res.body.data.buyAsset.buy.amount).toEqual(2)
+        expect(res.body.data.buyAsset.buy.currency).toEqual('ALGO')
+        expect(res.body.data.buyAsset.buy.saleType.id).toEqual(fixed?.id)
+        expect(res.body.data.buyAsset.buy.txIds).toEqual('test_algo_txn_id')
+        expect(res.body.data.buyAsset.buy.type).toEqual(TRANSACTION_TYPES.BUY)
+        expect(res.body.data.buyAsset.buy.assetId).toEqual(asset?.id)
+        expect(res.body.data.buyAsset.buy.buyerId).toEqual(minter?.id)
+        expect(res.body.data.buyAsset.buy.userId).toEqual(owner?.id)
+        expect(res.body.data.buyAsset.buyTransactionId).toEqual(res.body.data.buyAsset.buy.id)
+        done()
+      })
+  })
+
+  test("Delist an asset", async (done: any) => {
+    let asset: Asset | undefined
+    const lookups = await findByType(LOOKUP_SALE_TYPES)
+    if (owner instanceof User) {
+      asset = await createAsset(
+        {
+          name: "Added NFT",
+          description: "NFT only added",
+          ipfsPath: "/path/to/added/nft",
+          saleType: lookups[0].id,
+          txId: 'minttx1234567',
+          listingTxId: 'listtx12345',
+          currency: 'ALGO',
+          price: 1
+        }, owner)
+    }
+    request
+      .post("/graphql")
+      .send({
+        query: `
+          mutation {
+            delistAsset(
+              id: ${asset?.id},
+              ownerAddress: "${owner?.walletAddress}",
+            ) { 
+              ${result_fields()}
+            }
+          }
+        `,
+      })
+      .set("Accept", "application/json")
+      .set({ 'Authorization': `Bearer ${process.env.TEST_JWT}` })
+      .expect("Content-Type", /json/)
+      .expect(200)
+      .end(async function (err: any, res: any) {
+        if (err) return done(err)
+        expect(res.body).toBeInstanceOf(Object)
+        expect(res.body.data.delistAsset.owner.walletAddress).toEqual(owner?.walletAddress)
+        expect(res.body.data.delistAsset.price).toEqual(null)
+        expect(res.body.data.delistAsset.listingTxId).toEqual(null)
+        expect(res.body.data.delistAsset.transactions[1].type).toEqual(TRANSACTION_TYPES.DELIST)
+        expect(res.body.data.delistAsset.transactions[1].txIds).toBeNull()
+        expect(res.body.data.delistAsset.transactions[1].amount).toBeNull()
+        expect(res.body.data.delistAsset.transactions[1].currency).toBeNull()
+        expect(res.body.data.delistAsset.transactions[1].assetId).toEqual(asset?.id)
+        expect(res.body.data.delistAsset.transactions[1].userId).toEqual(owner?.id)
+        expect(res.body.data.delistAsset.transactions[1].sellType).toBeNull()
+        done()
+      })
+  })
+
+})

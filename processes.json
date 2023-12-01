@@ -1,0 +1,13 @@
+{
+  "apps": [
+    {
+      "name": "be",
+      "script": "./bin/www",
+      "merge_logs": true,
+      "max_restarts": 1000,
+      "instances": 2,
+      "max_memory_restart": "200M",
+      "watch": ["restart.txt"]
+    }
+  ]
+}

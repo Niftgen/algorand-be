@@ -1,0 +1,546 @@
+enum Currency {
+  USD
+  ALGO
+  NIFTGEN
+}
+
+enum AssetSortOrder {
+  LATEST_ADDED
+  MOST_VIEWED
+  PRICE_HL
+  PRICE_LH
+  TOP_RATED
+}
+
+enum NotificationType {
+  COMMENT
+  MESSAGE
+  RATING
+  PURCHASE
+  SALE
+  WON
+  BID
+  EXPIRED_SUBSCRIPTION
+}
+
+enum AssetKind {
+  NFT_IMAGE
+  NFT_VIDEO
+  VIDEO
+  AUDIO
+  NFT_AUDIO
+  SUBSCRIPTION
+  FREE_VIDEO
+}
+
+enum AssetStatus {
+  MINTED
+  UNMINTED
+  LISTED
+  SOLD
+  VISIBLE
+  HIDDEN
+}
+
+type Asset {
+  id: Int!
+  userId: Int!
+  description: String
+  name: String!
+  asaId: Int
+  txId: String
+  ipfsPath: String
+  filePath: String
+  categories: [Lookup]
+  saleType: Lookup
+  owner: User
+  minter: User
+  price: Int
+  currency: Currency
+  sellType: Int
+  minterId: Int
+  listingTxId: String
+  buyTxId: String
+  deListTxId: String
+  ratingTotals: RatingTotals
+  myRating: Int
+  totalComments: Int
+  createdAt: AWSDateTime
+  updatedAt: AWSDateTime
+  mintTransactionId: Int
+  mint: Transaction
+  listTransactionId: Int
+  list: Transaction
+  auctionTransactionId: Int
+  auction: Transaction
+  buyTransactionId: Int
+  buy: Transaction
+  winBidTransactionId: Int
+  winningBid: Transaction
+  deListTransactionId: Int
+  delist: Transaction
+  appTransactionId: Int
+  app: Transaction
+  optinTransactionId: Int
+  optin: Transaction
+  cover: String
+  kind: AssetKind
+  views: Int
+  metadata: AWSJSON
+  duration: Int
+}
+
+type AsseTotals {
+  totalCount: Int
+}
+
+type Comment {
+  id: Int!
+  content: String!
+  asset: Asset
+  assetId: Int
+  addressee: User
+  addresseeId: Int
+  owner: User
+  userId: Int
+  messageRead: AWSDateTime
+  createdAt: AWSDateTime
+  updatedAt: AWSDateTime
+}
+
+type MessageTotals {
+  privateMessageTotal: Int
+  privateMessageRead: Int
+  nftMessageTotal: Int
+  nftMessageRead: Int
+}
+
+type Lookup {
+  id: Int!
+  active: Boolean!
+  description: String!
+  type: String!
+  createdAt: AWSDateTime
+  updatedAt: AWSDateTime
+}
+
+type Notification {
+  id: Int!
+  notification: String!
+  notificationType: NotificationType!
+  asset: Asset
+  owner: User!
+  rating: Rating
+  comment: Comment
+  transaction: Transaction
+  originator: User
+  createdAt: AWSDateTime
+  updatedAt: AWSDateTime
+  userId: Int
+  assetId: Int
+  ratingId: Int
+  commentId: Int
+  originatorId: Int
+  transactionId: Int
+  deletedCommentId: Int
+}
+
+type Rating {
+  id: Int!
+  rating: Int
+  userId: Int!
+  assetId: Int!
+  user: User
+  asset: Asset
+}
+
+type RatingTotals {
+  averageRating: Float
+  ratingCount: Int
+}
+
+type Transaction {
+  id: Int!
+  type: String
+  txIds: String
+  amount: Int
+  currency: Currency
+  userId: Int
+  buyerId: Int
+  assetId: Int
+  auctionId: Int
+  sellType: Int
+  owner: User
+  buyer: User
+  asset: Asset
+  saleType: Lookup
+  royaltyFee: Int
+  createdAt: AWSDateTime
+  updatedAt: AWSDateTime
+  appId: Int
+  startTime: AWSDateTime
+  endTime: AWSDateTime
+  bids: [Transaction]
+  appAddress: String
+}
+
+type User {
+  id: Int!
+  avatarPath: AWSURL
+  createdAt: AWSDateTime
+  dateOfBirth: AWSDate
+  email: AWSEmail!
+  interests: [Lookup]
+  types: [Lookup]
+  updatedAt: AWSDateTime
+  userName: String!
+  walletAddress: String!
+  bio: String
+  twitterUrl: String
+  instagramUrl: String
+  discordUrl: String
+  facebookUrl: String
+  notifications: [Notification]
+  messageReceivedTotals: MessageTotals
+  videoCreator: Boolean
+  kyc: Boolean
+  kycToken: AWSJSON
+  kycDate: AWSDateTime
+  metadata: AWSJSON
+  creatorAppTransactionId: Int
+  creatorApp: Transaction
+  referralCode: String
+  creatorReferralCode: String
+}
+
+type Response {
+  data: AWSJSON
+}
+
+schema {
+  query:Query
+  mutation:Mutation
+  subscription: Subscription
+}
+
+type Query {
+  """
+  Add any new params for getAssets to getAssetsCount as well
+  """
+  getAssets(
+    walletAddress: String!,
+    categories: [Int],
+    sort: AssetSortOrder,
+    limit: Int,
+    offset: Int,
+    ownedByCurrentUser: Boolean,
+    onlyListed: Boolean,
+    kind: [AssetKind],
+    status: [AssetStatus],
+    ownedByWalletAddress: String
+  ): [Asset]
+  getAssetsCount(
+    walletAddress: String!,
+    categories: [Int],
+    sort: AssetSortOrder,
+    limit: Int,
+    offset: Int,
+    ownedByCurrentUser: Boolean,
+    onlyListed: Boolean,
+    kind: [AssetKind],
+    status: [AssetStatus],
+    ownedByWalletAddress: String
+  ): AsseTotals
+  getAsset(
+    id: Int
+  ): Asset
+  getAssetOptin(
+    walletAddress: String!,
+    id: Int!
+  ): Transaction
+
+  getLookups: [Lookup]
+  getLookupsForType(
+    type: String!
+  ): [Lookup]
+  getCategories: [Lookup]
+  getUserTypes: [Lookup]
+  getSaleTypes: [Lookup]
+
+  getNotifications(
+    walletAddress: String!,
+    notificationType: NotificationType,
+    limit: Int,
+    offset: Int
+  ): [Notification]
+
+  getNftMessages(
+    walletAddress: String!,
+    assetId: [Int],
+    limit: Int,
+    offset: Int
+  ): [Comment]
+  getNftComments(
+    assetId: Int!,
+    limit: Int,
+    offset: Int
+  ): [Comment]
+  getPrivateMessages(
+    walletAddress: String!,
+    limit: Int,
+    offset: Int
+  ): [Comment]
+
+  getUsers: [User]
+  getUser(
+    walletAddress: String,
+    referralCode: String
+  ): User
+
+}
+
+type Mutation {
+
+  addAsset(
+    ownerAddress: String!,
+    name: String!,
+    ipfsPath: String,
+    description: String,
+    categories: [Int],
+    filePath: String,
+    kind: AssetKind,
+    cover: String,
+    duration: Int,
+    metadata: AWSJSON
+  ): Asset
+  """
+  addVideo(
+    ownerAddress: String!,
+    name: String!,
+    ipfsPath: String,
+    filePath: String,
+    description: String,
+    categories: [Int],
+    duration: Int,
+    metadata: AWSJSON
+  ): Asset
+  """
+  bidOnAsset(
+    id: Int!,
+    buyerAddress: String!,
+    amount: Int,
+    signedTxn: AWSJSON!
+  ): Asset
+  buyAsset(
+    id: Int!,
+    buyerAddress: String!,
+    signedTxn: AWSJSON!
+  ): Asset
+  deleteAsset(
+    id: Int,
+    ownerAddress: String!
+  ): Int
+  delistAsset(
+    id: Int!,
+    ownerAddress: String!,
+    signedTxn: AWSJSON!
+  ): Asset
+  listAsset(
+    id: Int!,
+    ownerAddress: String!,
+    price: Int,
+    currency: Currency!,
+    signedTxn: AWSJSON!
+  ): Asset
+  mintAsset(
+    id: Int!,
+    minterAddress: String!
+    signedTxn: AWSJSON!
+  ): Asset
+  updateAsset(
+    id: Int!,
+    ownerAddress: String!,
+    kind: AssetKind,
+  ): Asset
+  viewedAsset(
+    id: Int!,
+    walletAddress: String!
+  ): Asset
+
+
+  createAuction(
+    id: Int!,
+    ownerAddress: String!,
+    currency: Currency!,
+    startTime: AWSDateTime,
+    endTime: AWSDateTime,
+    reservePrice: Int,
+    signedTxn: AWSJSON!
+  ): Asset
+  startAuction(
+    id: Int!,
+    ownerAddress: String!,
+    signedTxn: AWSJSON!
+  ): Asset
+  endAuction(
+    id: Int!,
+    walletAddress: String!,
+    signedTxn: AWSJSON!
+  ): Asset
+
+  createApp(
+    id: Int!,
+    ownerAddress: String!,
+    royaltyFee: Int,
+    signedTxn: AWSJSON!
+  ): Asset
+  optinApp(
+    id: Int!,
+    ownerAddress: String!,
+    signedTxn: AWSJSON!
+  ): Asset
+  optinAsset(
+    id: Int!,
+    ownerAddress: String!,
+    signedTxn: AWSJSON!
+  ): Transaction
+
+  updateAssetIpfs: Int
+
+  authenticate(
+    walletAddress: String,
+    transaction: String
+  ): Response
+
+  addNftComment(
+    walletAddress: String!,
+    assetId: Int!,
+    content: String!
+  ): Comment
+  addNftMessage(
+    walletAddress: String!,
+    assetId: Int!,
+    addresseeId: Int!,
+    content: String!
+  ): Comment
+  addPrivateMessage(
+    walletAddress: String!,
+    addresseeId: Int!,
+    content: String!
+  ): Comment
+  messageRead(
+    walletAddress: String!,
+    id: Int!
+  ): Comment
+  messagesRead(
+    walletAddress: String!,
+    ids: [Int]!
+  ): [Comment]
+  deleteComment(
+    walletAddress: String!,
+    id: Int
+  ): Int
+
+  addLookup(
+    description: String!,
+    type: String!
+  ): Lookup
+  deleteLookup(
+    id: Int!
+  ): Int
+  editLookup(
+    id: Int!,
+    description: String,
+    type: String,
+    active: Boolean
+  ): Lookup
+
+  deleteNotification(
+    walletAddress: String!,
+    id: Int!
+  ): Int
+
+  addRating(
+    assetId: Int!,
+    walletAddress: String!,
+    rating: Int
+  ): Rating
+
+  addUser(
+    email: String!,
+    userName: String!,
+    walletAddress: String!,
+    dateOfBirth: AWSDate,
+    avatarPath: String,
+    interests: [Int],
+    types: [Int],
+    bio: String,
+    twitterUrl: String,
+    instagramUrl: String,
+    discordUrl: String,
+    facebookUrl: String,
+    videoCreator: Boolean,
+    metadata: AWSJSON
+  ): User
+  deleteUser(
+    walletAddress: String!
+  ): Int
+  editUser(
+    email: String,
+    userName: String,
+    walletAddress: String!,
+    dateOfBirth: AWSDate,
+    avatarPath: String,
+    interests: [Int],
+    types: [Int],
+    bio: String,
+    twitterUrl: String,
+    instagramUrl: String,
+    discordUrl: String,
+    facebookUrl: String,
+    videoCreator: Boolean,
+    metadata: AWSJSON
+  ): User
+
+
+  addCreatorApp(
+    walletAddress: String!
+    unsignedTxn: AWSJSON!
+  ): User
+
+
+  triggerNotification(
+    token: String!
+  ): Notification
+
+  transak(
+    data: String!
+  ): Boolean
+
+}
+
+type Subscription {
+  onListAsset: Asset
+    @aws_subscribe(mutations: ["listAsset"])
+  onDelistAsset: Asset
+    @aws_subscribe(mutations: ["delistAsset"])
+  onBuyAsset: Asset
+    @aws_subscribe(mutations: ["buyAsset"])
+
+  onAddRatingByAssetId(assetId: Int): Rating
+    @aws_subscribe(mutations: ["addRating"])
+  onAddRating: Rating
+    @aws_subscribe(mutations: ["addRating"])
+
+  onAddNftCommentByAssetId(assetId: Int!): Comment
+    @aws_subscribe(mutations: ["addNftComment"])
+  onAddNftComment: Comment
+    @aws_subscribe(mutations: ["addNftComment"])
+
+  onAddPrivateMessageByWalletAddress(walletAddress: String!): Comment
+    @aws_subscribe(mutations: ["addPrivateMessage"])
+
+  onNotification(userId: Int, assetId: Int, notificationType: NotificationType, originatorId: Int): Notification
+    @aws_subscribe(mutations: ["triggerNotification"])
+
+}

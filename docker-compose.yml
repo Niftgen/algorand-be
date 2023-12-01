@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+
+  postgres:
+    image: postgres:14.3
+    environment:
+      POSTGRES_USER: niftgen
+      POSTGRES_PASSWORD: test_db_password
+    ports:
+      - '5432:5432'
+    volumes:
+      - niftgen-postgres:/var/lib/postgresql/data
+
+volumes:
+  niftgen-postgres:

@@ -1,0 +1,68 @@
+{
+  "name": "be",
+  "description": "Niftgen backend",
+  "version": "0.1.0",
+  "license": "MIT",
+  "bin": {
+    "be": "bin/be.js"
+  },
+  "scripts": {
+    "check": "npx npm-check-updates \"/aws-cdk/\"",
+    "upgrade": "npx npm-check-updates -u \"/aws-cdk/\" && npm install",
+    "build": "tsc",
+    "watch": "tsc -w",
+    "test": "jest --runInBand",
+    "cdk": "cdk",
+    "prediff": "yarn build",
+    "cdk-diff-staging": "tsc && yarn cdk diff \"*\" -c config=staging --profile default",
+    "cdk-diff-prod": "tsc && yarn cdk diff \"*\" -c config=production --profile default",
+    "cdk-synth-staging": "tsc && yarn cdk synth \"*\" -c config=staging --profile default",
+    "cdk-synth-prod": "tsc && yarn cdk synth \"*\" -c config=production --profile default",
+    "cdk-synth-mainnet": "tsc && yarn cdk synth \"*\" -c config=mainnet --profile default",
+    "cdk-deploy-staging": "tsc && yarn cdk deploy \"*\" -c config=staging --profile default --require-approval=never --progress=events",
+    "cdk-deploy-prod": "tsc && yarn cdk deploy \"*\" -c config=production --profile default --require-approval=never --progress=events",
+    "cdk-deploy-mainnet": "tsc && yarn cdk deploy \"*\" -c config=mainnet --profile default --require-approval=never --progress=events"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Niftgen-Algorand/be.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Niftgen-Algorand/be/issues"
+  },
+  "homepage": "https://github.com/Niftgen-Algorand/be#readme",
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.106",
+    "@types/jest": "^26.0.10",
+    "@types/node": "^18.8.1",
+    "aws-cdk": "^2.44.0",
+    "axios-mock-adapter": "^1.21.2",
+    "chai": "^4.3.6",
+    "jest": "^26.4.2",
+    "supertest": "^6.3.0",
+    "ts-jest": "^26.2.0",
+    "ts-node": "^10.9.1",
+    "typescript": "4.6.4"
+  },
+  "dependencies": {
+    "@aws-cdk/aws-appsync-alpha": "^2.44.0-alpha.0",
+    "@aws-sdk/client-pinpoint": "^3.183.0",
+    "@types/pg": "^8.6.5",
+    "ajv-formats": "^2.1.1",
+    "algosdk": "^1.21.0",
+    "aws-cdk-lib": "^2.44.0",
+    "aws-sdk": "^2.1228.0",
+    "axios": "^0.27.2",
+    "constructs": "^10.1.121",
+    "dotenv": "^16.0.3",
+    "form-data": "^4.0.0",
+    "formidable": "^2.0.1",
+    "jsonwebtoken": "^8.5.1",
+    "knex": "^2.3.0",
+    "mixpanel": "^0.17.0",
+    "objection": "^3.0.1",
+    "pg": "^8.8.0",
+    "source-map-support": "^0.5.16",
+    "superagent": "^8.0.2"
+  }
+}

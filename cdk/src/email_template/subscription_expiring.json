@@ -1,0 +1,8 @@
+{
+  "Template": {
+    "TemplateName": "SubscriptionExpiring",
+    "SubjectPart": "Niftgen subscription expiring soon",
+    "HtmlPart": "<h1>Hi {{name}},</h1><p>Thank you for subscribing to {{creator}}. Your subscription is set to expire on {{expiry}}.</p><p>To see upcoming exclusive content from your favorite creators, just go to Account Settings in your Niftgen account and click on Renew Subscription.</p><p>Regards,</p><p>Niftgen</p>",
+    "TextPart": "Hi {{name}},\r\nThank you for subscribing to {{creator}}. Your subscription is set to expire on {{expiry}}.\r\nTo see upcoming exclusive content from your favorite creators, just go to Account Settings in your Niftgen account and click on Renew Subscription.\r\n\r\nRegards,\r\nNiftgen"
+  }
+}
